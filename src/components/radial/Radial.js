@@ -47,7 +47,7 @@ export default function RadialGraph() {
       <div id='radial-container' ref={radialChartEl}></div>
       <Panel country={currentCountry} indicator={currentIndicator}/>
       <a href="https://github.com/stopyransky/wdvp-eye"
-        title="Visit repository on Github" noreferrer noopener>
+        title="Visit repository on Github" noreferrer="true" noopener="true">
         <span className='gh'>
           <img src={github}/>
         </span>
