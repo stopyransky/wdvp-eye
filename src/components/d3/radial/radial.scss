@@ -1,0 +1,81 @@
+@import './../../../variables.scss';
+
+.radial-graph {
+  background-color: #202021;
+
+  &-label {
+    font-family: $fh-font-display;
+    fill: $fh-font-label-color;
+    font-size: 1rem;
+    pointer-events: none;
+    max-width: 80px;
+  }
+  .label {
+    fill: $fh-font-label-color;
+    font-size: 0.85rem;
+    font-family: $fh-font-display;
+
+    &.selected {
+      fill: $fh-color-label-selected;
+      cursor: pointer;
+    }
+
+    &.text-hover:not(.selected) {
+      fill: $fh-color-label-hover;
+      cursor: pointer;
+    }
+  }
+
+  .indicator-ring {
+    &-circle {
+      stroke: black;
+      fill: transparent;
+      pointer-events: none;
+    }
+  }
+  .comparator-ring {
+    &-circle {
+      stroke: black;
+      fill: transparent;
+      pointer-events: none;
+    }
+  }
+  .heatmap-ring-path {
+    // stroke: $fh-hr-path-stroke-color;
+    // stroke-width: $fh-hr-path-stroke-width;
+    &.selected {
+      stroke: $fh-path-selected-stroke;
+      stroke-width: $fh-path-selected-stroke-width;
+      opacity: 1;
+
+    }
+    &.animated {
+      fill: $fh-path-animated-color;
+    }
+
+    &.hover:not(.selected) {
+      stroke: $fh-path-selected-stroke;
+      stroke-width: 2;
+    }
+  }
+
+  .heatmap-ring-indicator-labels {
+    .radial-label-path {
+      fill: transparent;
+      pointer-events: none;
+    }
+  }
+}
+
+.ir-marker {
+  &:hover {
+    cursor: pointer;
+  }
+}
+.ir-ring-helper {
+  stroke: $fh-font-label-color;
+}
+
+.ir-indicator-radial {
+  stroke: $fh-font-label-color;
+}
