@@ -11,7 +11,7 @@
 @import './components/panel/Panel.scss';
 
 html, body {
-  background-color: #fefefe;
+  background-color: #232323;
   margin: 0px;
   padding: 0px;
   height: 100%;
@@ -76,7 +76,7 @@ html, body {
 
 .tooltip {
   font-family: $fh-font-display;
-  fill : rgba(255,255,255,0.7);
+  fill : rgba(240,240,240,0.8);
 
   &.tt-scatterplot {
     font-size: 1.25rem;
@@ -87,4 +87,23 @@ html, body {
   }
 }
 
+.gh {
+  position: absolute;
+  left: 40px;
+  bottom: 40px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: rgba(240,240,240,0.8);
+  img {
+    width: 24px;
+    height: 24px;
+  }
+  &:hover {
+    background: rgba(240,240,240, 1);
+  }
+}
 

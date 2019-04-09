@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import PropTypes from 'prop-types';
 import * as d3 from 'd3';
 import { dataSource, dataModel, makeData } from '../../data-helpers';
 import radialChart from '../d3/radial/radial';
 import Panel from '../panel/Panel';
-
+import github from '../../assets/github.png';
 export default function RadialGraph() {
 
   const theHeight = window.innerHeight > 1024 ?  window.innerHeight : 1024;
@@ -47,10 +46,12 @@ export default function RadialGraph() {
     <div className='radial-screen parallax svg-parallax'>
       <div id='radial-container' ref={radialChartEl}></div>
       <Panel country={currentCountry} indicator={currentIndicator}/>
+      <a href="https://github.com/stopyransky/wdvp-eye"
+        title="Visit repository on Github" noreferrer noopener>
+        <span className='gh'>
+          <img src={github}/>
+        </span>
+      </a>
     </div>
   );
 }
-
-RadialGraph.propTypes = {
-  scroller: PropTypes.number,
-};
