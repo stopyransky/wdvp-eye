@@ -1,6 +1,7 @@
 import * as d3 from 'd3';
 import * as src from './data/wdvp-new.csv';
 import { categoryMap, COUNTRY_DATA, ENVIRONMENT, SOCIAL, ECONOMY, GOVERNMENT, REGION, SUBREGION } from './metadata';
+import { RadialData } from './types';
 
 export const dataSource = src;
 
@@ -35,28 +36,27 @@ export const excludedCategories = [...textualCategories,
 ];
 
 const excludedCountries = [];
+
 const nonTextualOnly = (d: string): boolean => !textualCategories.includes(d);
 
 const validIndicators = (d: string): boolean => !excludedCategories.includes(d);
 
 export const validCountries = (d: string): boolean => !excludedCountries.includes(d);
 
-const normalize = function(v, min, max, { desc }) {
-  let normalized;
+const normalize = function(v: number, min: number, max: number, { desc }): null | number {
   if (v === null) {
-    normalized = null;
+    return null;
   } else {
     const n = (v - min) / (max - min);
     if (desc) {
-      normalized = 1 - n;
+      return 1 - n;
     } else {
-      normalized = n;
+      return n;
     }
   }
-  return normalized;
 };
 
-export const dataModel = (row: any) => {
+export const modelData = (row: any): any => {
   Object.keys(row).filter(nonTextualOnly)
     .forEach(key => {
       const val = +row[key];
@@ -69,14 +69,21 @@ export const dataModel = (row: any) => {
   return {...row};
 };
 
-export function makeData(tableData) {
-  // rawData = [ { [field names as per csv header] } ]
+export function makeData(tableData): RadialData {
+
   const categories = tableData.columns;
   const filteredData = tableData.filter(d => validCountries(d.country));
   const indicators = makeIndicatorData(filteredData);
   const dataItems = makeDataItems(filteredData, indicators);
   const countryData = makeCountryData(dataItems);
-  return { dataItems, rawData: filteredData, categories, indicators, countryData };
+
+  return {
+    dataItems,
+    rawData: filteredData,
+    categories,
+    indicators,
+    countryData
+  };
 }
 
 function makeDataItems(tableData, indicators) {

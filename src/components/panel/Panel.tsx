@@ -1,22 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import PropTypes from 'prop-types';
-import { categoryMap } from '../../metadata';
+import * as React from 'react';
+import { useState } from 'react';
+
 import { formatNumber } from '../../data-helpers';
+import { PanelProps } from '../../types';
 
-export default function Panel({indicator, country}) {
+export default function Panel(props: PanelProps) {
   const [show, setShow] = useState(false);
-  const [ indicatorInfo, setIndicatorInfo ] = useState(null);
-
-  useEffect(() => {
-    setIndicatorInfo(categoryMap[indicator]);
-  }, [ indicator ]);
-
+  const { indicator, country } = props;
   return (
     <div className='fh-panel'>
-      { !show && <div className='fh-panel fh-panel--collapsed' onClick={()=> setShow(true)}>info</div>}
+      { !show && <div className='fh-panel fh-panel--collapsed' onClick={() => setShow(true)}>info</div>}
       { show && <div className='fh-panel fh-panel--expanded'>
         <span className='close' onClick={() => setShow(false)}>close</span>
-        {!country && !indicatorInfo && <div className='panel-info empty'>
+        {!country && !indicator && <div className='panel-info empty'>
           <p>{'This is information panel where you\'ll find data about selected indicator and country.'}
           </p>
           <p>{'Select country or indicator on main graph by clicking its label to see details here.'}</p>
@@ -29,29 +25,23 @@ export default function Panel({indicator, country}) {
           <div><span>Area (km2): </span>{formatNumber(country.surfacearea, 0)}</div>
           <div><span>GDP ($bln PPP): </span>{formatNumber(country.GDP)}</div>
         </div>}
-        {indicatorInfo && <div className='panel-info'>
-          <h1>{indicatorInfo.label} {indicatorInfo.unit ? `(${indicatorInfo.unit})` : '' }</h1>
+        {indicator && <div className='panel-info'>
+          <h1>{indicator.label} {indicator.unit ? `(${indicator.unit})` : '' }</h1>
           <div>
             <span>Source: </span>
-            <a href={indicatorInfo.url}
+            <a href={indicator.url}
               rel='noopener noreferrer'
-              target='_blank'>{indicatorInfo.source}
+              target='_blank'>{indicator.source}
             </a>
-            <span> ({indicatorInfo.year})</span>
+            <span> ({indicator.year})</span>
           </div>
           <div>
             <span>Description: </span>
-            <p>{indicatorInfo.description}</p>
-            <p>{indicatorInfo.details}</p>
+            <p>{indicator.description}</p>
+            <p>{indicator.details}</p>
           </div>
         </div>}
       </div>}
     </div>
   );
 }
-
-Panel.propTypes = {
-  indicator: PropTypes.string,
-  country: PropTypes.object
-};
-
