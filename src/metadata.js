@@ -1,3 +1,4 @@
+
 export const COUNTRY_DATA = 'countryData';
 export const ECONOMY = 'economy';
 export const ENVIRONMENT = 'environment';

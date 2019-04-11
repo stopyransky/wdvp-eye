@@ -1,7 +1,24 @@
 import * as d3 from 'd3';
 import * as src from './data/wdvp-new.csv';
-import { categoryMap, COUNTRY_DATA, ENVIRONMENT, SOCIAL, ECONOMY, GOVERNMENT, REGION, SUBREGION } from './metadata';
-import { RadialData } from './types';
+import {
+  categoryMap,
+  COUNTRY_DATA,
+  ENVIRONMENT,
+  SOCIAL,
+  ECONOMY,
+  GOVERNMENT,
+  REGION,
+  SUBREGION
+} from './metadata';
+import {
+  RadialSchema,
+  DatapointSchema,
+  CSVData,
+  CountryRecord,
+  Indicators,
+  IndicatorStats,
+  IndicatorValue
+} from './types';
 
 export const dataSource = src;
 
@@ -34,6 +51,36 @@ export const excludedCategories = [...textualCategories,
   'healthexpenditureperperson', // hard to compare countries as it depends on gdp level,
   'educationexpenditureperperson' // lots of missing data, also depends on gdp level
 ];
+
+const colorMap = {
+  'Asia': '#F68BAD',
+  'Southern Asia': '#A3047D',
+  'Western Asia': '#E74F9A',
+  'South-eastern Asia': '#F68BAD',
+  'Eastern Asia': '#FACECC',
+  'Central Asia': '#4E0069',
+
+  'Europe': '#7DAACE',
+  'Northern Europe': '#166296',
+  'Southern Europe': '#2F83B6',
+  'Western Europe': '#3E8DBD',
+  'Eastern Europe': '#7DAACE',
+
+  'Africa': '#CFEBA4',
+  'Northern Africa': '#6BBE77',
+  'Sub-Saharan Africa': '#CFEBA4',
+
+  'Americas': '#C2C1DD',
+  'Latin America and the Caribbean': '#7E74B2',
+  'Northern America': '#C2C1DD',
+
+  'Australia and New Zealand': '#FCE499',
+  'Oceania': '#FDD077',
+  'Melanesia': '#FDD077',
+  'Micronesia': '#FFF5BF',
+  'Polynesia': '#FCE499',
+  'none': '#afafaf'
+};
 
 const excludedCountries = [];
 
@@ -69,32 +116,63 @@ export const modelData = (row: any): any => {
   return {...row};
 };
 
-export function makeData(tableData): RadialData {
-
-  const categories = tableData.columns;
-  const filteredData = tableData.filter(d => validCountries(d.country));
-  const indicators = makeIndicatorData(filteredData);
-  const dataItems = makeDataItems(filteredData, indicators);
-  const countryData = makeCountryData(dataItems);
+export function makeData(csvData: CSVData): RadialSchema {
+  const categories = csvData.columns;
+  const countries = csvData.filter(d => validCountries(d.country));
+  const indicators = makeIndicatorData(countries);
+  const dataItems = makeDataItems(countries, indicators);
 
   return {
     dataItems,
-    rawData: filteredData,
+    countries,
     categories,
     indicators,
-    countryData
   };
 }
 
-function makeDataItems(tableData, indicators) {
+// TODO: redo with array.reduce
+function makeIndicatorData(countries: CountryRecord[]): Indicators {
+  const indicatorNames = Object.keys(countries[0]);
+  const indicators = {};
+
+  indicatorNames.filter(i => !excludedCategories.includes(i)).forEach(indicatorName => {
+    const { desc } = categoryMap[indicatorName];
+    const indicatorStats: any = { values: []};
+
+    countries.forEach(item => {
+      const value = item[indicatorName];
+      const countryName = item.country;
+      indicatorStats.values.push({ country: countryName, value });
+    });
+
+    const values = indicatorStats.values.map(v => v.value);
+    indicatorStats.extent = d3.extent(values);
+    const [ min, max ] = indicatorStats.extent;
+    indicatorStats.min = min;
+    indicatorStats.max = max;
+    indicatorStats.sum = d3.sum(values);
+    indicatorStats.average = indicatorStats.sum / values.length;
+    indicatorStats.normAverage = normalize(indicatorStats.average, min, max, { desc });
+    indicatorStats.desc = desc;
+    indicatorStats.values = indicatorStats.values.map(v => {
+      const n = normalize(v.value, min, max, { desc });
+      return { ...v, normalized: n };
+    });
+    indicators[indicatorName] = indicatorStats as IndicatorStats;
+  });
+
+  return indicators as Indicators;
+}
+
+function makeDataItems(countries: CountryRecord[], indicators: Indicators): DatapointSchema[] {
 
   const allCells = [];
 
-  tableData.filter(validCountries).forEach(row => {
+  countries.forEach((row: CountryRecord) => {
 
     const rowCells = [];
     const countryName = row.country;
-    const byCountryName = v => v.country === countryName;
+    const byCountryName = (c: string): boolean => c === countryName;
     const totalIndicator = {
       id: row.ISO + 'Total',
       country: countryName,
@@ -104,10 +182,15 @@ function makeDataItems(tableData, indicators) {
       value: undefined,
       desc: undefined,
     };
-    Object.keys(row).filter(validIndicators).forEach(indicatorName => {
 
-      const normalized = indicators[indicatorName].values.find(byCountryName).normalized;
-      const dataItem = {
+    Object.keys(row)
+      .filter(validIndicators)
+      .forEach((indicatorName: string) => {
+
+      const normalized = indicators[indicatorName].values
+        .find((v: IndicatorValue) => byCountryName(v.country)).normalized;
+
+      const dataItem: DatapointSchema = {
         id: row.ISO + indicatorName,
         country: countryName,
         code: row.ISO,
@@ -128,83 +211,20 @@ function makeDataItems(tableData, indicators) {
     totalIndicator.normalized = totalIndicator.normalized / rowCells.length;
     // adding only existing data.
     // totalIndicator.normalized = totalIndicator.normalized / rowCells.filter(i => !!i.normalized).length;
-    totalIndicator.value = totalIndicator.normalized.toFixed(2);
+    totalIndicator.value = +totalIndicator.normalized.toFixed(2);
     totalIndicator.desc = 0;
     rowCells.push(totalIndicator);
     allCells.push(...rowCells);
   });
-  // return [{ country, indicator, normalized, value, desc }]
-  return allCells;
+  return allCells as DatapointSchema[];
 }
-
-// TODO: redo with array.reduce
-function makeIndicatorData(rawData) {
-  const indicatorNames = Object.keys(rawData[0]);
-  const indicators = {};
-
-  indicatorNames.filter(i => !excludedCategories.includes(i)).forEach(indicatorName => {
-    const { desc } = categoryMap[indicatorName];
-    const indicatorStats: any = { values: []};
-
-    rawData.forEach(country => {
-      const value = country[indicatorName];
-      const countryName = country.country;
-      indicatorStats.values.push({ country: countryName, value });
-    });
-
-    const values = indicatorStats.values.map(v => v.value);
-    indicatorStats.extent = d3.extent(values);
-    const [ min, max ] = indicatorStats.extent;
-    indicatorStats.min = min;
-    indicatorStats.max = max;
-    indicatorStats.sum = d3.sum(values);
-    indicatorStats.average = indicatorStats.sum / values.length;
-    indicatorStats.normAverage = normalize(indicatorStats.average, min, max, { desc });
-    indicatorStats.desc = desc;
-    indicatorStats.values = indicatorStats.values.map(v => {
-      const n = normalize(v.value, min, max, { desc });
-      return { ...v, normalized: n };
-    });
-    indicators[indicatorName] = indicatorStats;
-  });
-  // return {
-  //     ...,
-  //   [indicatorName]: {
-  //    values: [{ country: 'countryName', value, normalized }],
-  //    extent: [min, max], sum, average,
-  // }}
-  return indicators;
-}
-
-function makeCountryData(dataItems) {
-  // const countryData = {};
-  // console.log(dataItems)
-  // [
-  //  country: 'Andorra'
-  //  desc: 1
-  //  indicator: 'Unemployment'
-  //  normalized: 1
-  //  value: null
-  // ]
-  // const countryData = dataItems.reduce((acc, curr) => {
-  //   console.log(acc, curr);
-  //   if(acc[curr.country]) {
-  //     acc[curr.country].push({...curr});
-  //   } else {
-  //     acc[curr.country] = [{...curr}];
-  //   }
-  // }, {});
-  // return: { [countryName]: [{ indicatorName, value, normalized, desc, ...}] }
-  return dataItems;
-}
-
 
 const interpolateEnvironmentColors = d3.interpolateGreens;
 const interpolateSocialColors = d3.interpolateYlOrBr;
 const interpolateEconomyColors = d3.interpolateBuPu;
 const interpolateGovernmentColors = d3.interpolatePuBu;
 
-export const colorize = (indicator) => {
+export const colorize = (indicator: string): d3.ScaleSequential<string> | d3.ScaleOrdinal<any, any> => {
   const item = categoryMap[indicator];
   const type = item ? item.group : '';
   switch (type) {
@@ -219,71 +239,36 @@ export const colorize = (indicator) => {
   }
 };
 
-export function desaturate(color, v) {
+export function desaturate(color: string, v: number): d3.HSLColor {
   const col = d3.hsl(color);
   col.s = v;
   return col;
 }
 
-const colorMap = {
-  'Asia': '#F68BAD',
-  'Southern Asia': '#A3047D',
-  'Western Asia': '#E74F9A',
-  'South-eastern Asia': '#F68BAD',
-  'Eastern Asia': '#FACECC',
-  'Central Asia': '#4E0069',
-
-  'Europe': '#7DAACE',
-  'Northern Europe': '#166296',
-  'Southern Europe': '#2F83B6',
-  'Western Europe': '#3E8DBD',
-  'Eastern Europe': '#7DAACE',
-
-  'Africa': '#CFEBA4',
-  'Northern Africa': '#6BBE77',
-  'Sub-Saharan Africa': '#CFEBA4',
-
-  'Americas': '#C2C1DD',
-  'Latin America and the Caribbean': '#7E74B2',
-  'Northern America': '#C2C1DD',
-
-  'Australia and New Zealand': '#FCE499',
-  'Oceania': '#FDD077',
-  'Melanesia': '#FDD077',
-  'Micronesia': '#FFF5BF',
-  'Polynesia': '#FCE499',
-  'none': '#afafaf'
-};
-
-export const colorByRegion = (r) => {
+export function colorByRegion(r: string): string {
   if (r) { return colorMap[r]; }
   return colorMap['none'];
-};
+}
 
-export function formatNumber(amount, decimalCount = 2, decimal = '.', thousands = ',') {
+export function formatNumber(amount: number, decimalCount = 2, decimal = '.', thousands = ',') {
+
   try {
     decimalCount = Math.abs(decimalCount);
     decimalCount = isNaN(decimalCount) ? 2 : decimalCount;
 
     const negativeSign = amount < 0 ? '-' : '';
 
-    const i = parseInt(amount = Math.abs(Number(amount) || 0).toFixed(decimalCount), 10).toString();
+    const i = parseInt(Math.abs(Number(amount) || 0).toFixed(decimalCount), 10).toString();
     const j = (i.length > 3) ? i.length % 3 : 0;
 
     return negativeSign + (j ? i.substr(0, j) + thousands : '') +
       i.substr(j).replace(/(\d{3})(?=\d)/g, '$1' + thousands) +
       (decimalCount ? decimal + Math.abs(amount - +i).toFixed(decimalCount).slice(2) : '');
+
   } catch (e) {
-    // tslint:disable-next-line:no-console
-    console.log(e);
+    throw new Error(`formatNumber: failed to format number ${amount}, error: ${e}`);
   }
 }
-
-export const appendFilter = (svg, stdev) => svg.append('defs')
-  .append('filter')
-  .attr('id', 'blur')
-  .append('feGaussianBlur')
-  .attr('stdDeviation', stdev);
 
 function toStrat() {
   const table = [];

@@ -6,7 +6,7 @@ import * as github from '../../assets/github.png';
 import { dataSource, modelData, makeData } from '../../data-helpers';
 import radialChart from '../d3/radial/radial';
 import Panel from '../panel/Panel';
-import { RadialProps, RadialData, RadialState } from '../../types';
+import { RadialProps, RadialSchema, RadialState } from '../../types';
 import { baseReducer } from '../../utils';
 import { categoryMap } from '../../metadata';
 
@@ -41,7 +41,7 @@ export default function RadialGraph() {
   const setState = (type: string, value: any): void => dispatch({ type, value });
 
   const handleCountryUpdate = (countryName: string): void => {
-    const countryData = data.rawData.find(d => d.country === countryName);
+    const countryData = data.countries.find(d => d.country === countryName);
     setState('currentCountry', countryData);
   };
 
@@ -55,8 +55,8 @@ export default function RadialGraph() {
   function fetchData(): void {
     d3.dsv(';', dataSource, modelData)
       .then(makeData)
-      .then(({ dataItems, indicators, rawData }: RadialData) => {
-        setState('data', { dataItems, indicators, rawData });
+      .then(({ dataItems, indicators, countries}: RadialSchema) => {
+        setState('data', { dataItems, indicators, countries });
       });
     }
 
