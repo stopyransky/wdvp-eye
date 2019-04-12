@@ -1,17 +1,21 @@
 import * as d3 from 'd3';
 import { categoryMap } from '../../../metadata';
+import { Datapoint } from '../../../types';
 
-export function handleHoverEvents(selection, container) {
-  selection.on('mouseover',function(d) {
-    d3.select(this).classed('hover', true);
+export function tooltipGen(
+  selection: d3.Selection<SVGPathElement, Datapoint, SVGGElement, {}>,
+  container: d3.Selection<SVGGElement, {}, null, undefined>,
+): void {
+  selection.on('mouseover', (d, i, n) => {
+    d3.select(n[i]).classed('hover', true);
 
     const tooltipText = `${categoryMap[d.indicator].label}: ${d.value === null ? 'no data' : d.value}`;
 
-    const x = d3.mouse(this)[0];
-    const y = d3.mouse(this)[1];
+    const x = d3.mouse(n[i])[0];
+    const y = d3.mouse(n[i])[1];
 
     const tooltip = container.append('g')
-      .attr('id','radial-tooltip')
+      .attr('id', 'radial-tooltip')
       .attr('class', 'tooltip')
       .attr('transform', `translate(${x}, ${y})`);
 
@@ -42,8 +46,8 @@ export function handleHoverEvents(selection, container) {
     tooltipRect.attr('width', textWidth);
   });
 
-  selection.on('mouseout', function() {
-    d3.select(this).classed('hover', false);
+  selection.on('mouseout', (d, i, n) => {
+    d3.select(n[i]).classed('hover', false);
     d3.select('#radial-tooltip').remove();
   });
 }

@@ -7,7 +7,7 @@ import { PanelProps } from '../../types';
 export default function Panel(props: PanelProps) {
   const [show, setShow] = useState(false);
   const { indicator, country } = props;
-  console.log(country, indicator);
+
   return (
     <div className='fh-panel'>
       { !show && <div className='fh-panel fh-panel--collapsed' onClick={() => setShow(true)}>info</div>}

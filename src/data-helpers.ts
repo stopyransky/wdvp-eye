@@ -11,8 +11,8 @@ import {
   SUBREGION
 } from './metadata';
 import {
-  RadialSchema,
-  DatapointSchema,
+  RadialData,
+  Datapoint,
   CSVData,
   CountryRecord,
   Indicators,
@@ -27,7 +27,8 @@ export const textualCategories = [
   SOCIAL, ENVIRONMENT, ECONOMY, GOVERNMENT, COUNTRY_DATA
 ];
 
-export const excludedCategories = [...textualCategories,
+export const excludedCategories = [
+  ...textualCategories,
   'population',
   'surfacearea',
   'schoollifeexpectancy',
@@ -116,7 +117,7 @@ export const modelData = (row: any): any => {
   return {...row};
 };
 
-export function makeData(csvData: CSVData): RadialSchema {
+export function makeData(csvData: CSVData): RadialData {
   const categories = csvData.columns;
   const countries = csvData.filter(d => validCountries(d.country));
   const indicators = makeIndicatorData(countries);
@@ -164,7 +165,7 @@ function makeIndicatorData(countries: CountryRecord[]): Indicators {
   return indicators as Indicators;
 }
 
-function makeDataItems(countries: CountryRecord[], indicators: Indicators): DatapointSchema[] {
+function makeDataItems(countries: CountryRecord[], indicators: Indicators): Datapoint[] {
 
   const allCells = [];
 
@@ -190,7 +191,7 @@ function makeDataItems(countries: CountryRecord[], indicators: Indicators): Data
       const normalized = indicators[indicatorName].values
         .find((v: IndicatorValue) => byCountryName(v.country)).normalized;
 
-      const dataItem: DatapointSchema = {
+      const dataItem: Datapoint = {
         id: row.ISO + indicatorName,
         country: countryName,
         code: row.ISO,
@@ -216,7 +217,7 @@ function makeDataItems(countries: CountryRecord[], indicators: Indicators): Data
     rowCells.push(totalIndicator);
     allCells.push(...rowCells);
   });
-  return allCells as DatapointSchema[];
+  return allCells as Datapoint[];
 }
 
 const interpolateEnvironmentColors = d3.interpolateGreens;
@@ -239,10 +240,10 @@ export const colorize = (indicator: string): d3.ScaleSequential<string> | d3.Sca
   }
 };
 
-export function desaturate(color: string, v: number): d3.HSLColor {
+export function desaturate(color: string, v: number): string {
   const col = d3.hsl(color);
   col.s = v;
-  return col;
+  return col.toString();
 }
 
 export function colorByRegion(r: string): string {
@@ -274,6 +275,9 @@ function toStrat() {
   const table = [];
   Object.keys(categoryMap)
     .filter( c => !['total', 'countryData'].includes(categoryMap[c].group))
+    // .reduce((prev, curr, i, arr) => {
+      // TODO, instead of foreach below
+    // }, [])
     .forEach(k => {
       const g = categoryMap[k].group;
       const group = g ? g : 'root';

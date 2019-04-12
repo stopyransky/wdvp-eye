@@ -1,11 +1,11 @@
 
-export interface RadialSchema {
-  dataItems: any[];
+export interface RadialData {
+  dataItems: Datapoint[];
   countries: CountryRecord[];
   categories: string[];
   indicators: Indicators;
 }
-export interface DatapointSchema {
+export interface Datapoint {
   id: string;
   country: string;
   code: string;
@@ -14,6 +14,11 @@ export interface DatapointSchema {
   value: number | null;
   desc: boolean;
   useSqrt: boolean;
+  startAngle?: number;
+  endAngle?: number;
+  innerRadius?: number;
+  outerRadius?: number;
+  padAngle?: number;
 }
 
 export interface RadialProps {
@@ -27,7 +32,7 @@ export interface RadialProps {
 export interface RadialState {
   width: number;
   height: number;
-  data: RadialSchema;
+  data: RadialData;
   currentCountry: any;
   currentIndicator: any;
 }
@@ -121,3 +126,8 @@ export interface IndicatorStats {
 export interface Indicators {
   [indicatorName: string]: IndicatorStats;
 }
+
+export interface RadialMainGroupSelection extends d3.Selection<SVGGElement, {}, null, undefined> {}
+export interface HeatmapRingGroupSelection extends d3.Selection<SVGGElement, {}, SVGGElement, undefined> {}
+export interface CountryLabelPathSelection extends d3.Selection<d3.BaseType, string, SVGGElement, {}> {}
+export interface CountryLabelTextSelection extends d3.Selection<d3.BaseType, string, SVGGElement, {}> {}

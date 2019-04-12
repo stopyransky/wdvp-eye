@@ -1,8 +1,21 @@
+// tslint:disable:variable-name
+
 import * as d3 from 'd3';
 import { colorize, desaturate } from '../../../data-helpers';
-import { handleHoverEvents } from './shared';
+import { tooltipGen } from './shared';
 import radialParent from './radial';
 import { categoryMap } from '../../../metadata';
+import {
+  Datapoint,
+  IndicatorValue,
+  RadialData,
+  Indicators,
+  RadialMainGroupSelection,
+
+  CountryLabelPathSelection,
+  CountryLabelTextSelection,
+  HeatmapRingGroupSelection,
+} from '../../../types';
 
 export const hrInnerRadius = 140;
 export const hrCellHeight = 12;
@@ -14,40 +27,41 @@ const hrOffset = 0.15;
 const hrFactor = 1.76;
 const drawArc = d3.arc();
 const timing = {
-  inOut: 1200,
-  in: 600,
-  dur: 3000,
-  out: 600
+  inOut: 600,
+  in: 300,
+  dur: 1600,
+  out: 200
 };
 
-let _selectedIndicatorName = null;
-let _selectedCountryName = null;
-let _container = null;
-let _data = null;
-let _indicatorNames = null;
-let _countryNames = null;
-let _indicatorStats = null;
-let _prevCountryNames = null;
-let _empties = null;
+let _selectedIndicatorName: string;
+let _selectedCountryName: string;
+let _container: RadialMainGroupSelection;
+let _data: Datapoint[];
+let _indicatorNames: string[];
+let _countryNames: string[];
+let _indicatorStats: Indicators;
+let _prevCountryNames: string[];
+let _hrLinearAngleScale: d3.ScaleLinear<any, any>;
+let _hrAngleScale: d3.ScaleBand<any>;
+let _hrRadiusScale: d3.ScaleLinear<any, any>;
 let _sortDescending = true;
 let _hrOuterRadius = 0;
-let _hrLinearAngleScale = null;
-let _hrAngleScale = null;
-let _hrRadiusScale = null;
 
+let _heatmapRingGroup: HeatmapRingGroupSelection;
+let _countryLabelPaths: CountryLabelPathSelection;
+let _countryLabels: CountryLabelTextSelection;
 
-function init(container, data) {
-
+function init(container: RadialMainGroupSelection, data: RadialData): void {
   _container = container;
   _data = data.dataItems;
   _indicatorStats = data.indicators;
-  _indicatorNames = d3.set(_data.map(item => item.indicator)).values();
-  _countryNames = d3.set(_data.map(item => item.country)).values();
+  _indicatorNames = d3.set(_data.map((item: Datapoint) => item.indicator)).values();
+  _countryNames = d3.set(_data.map((item: Datapoint) => item.country)).values();
   _prevCountryNames = [..._countryNames];
   _hrOuterRadius = hrInnerRadius + hrCellHeight * _indicatorNames.length;
 
   _hrAngleScale = d3.scaleBand()
-    .domain(_countryNames.map((d, i) => i))
+    .domain(_countryNames.map((d: string, i: number) => i) as any)
     .range([hrOffset, hrOffset + hrFactor * Math.PI])
     .align(0);
 
@@ -64,82 +78,82 @@ function init(container, data) {
   initCountryLabels();
 }
 
-function initHeatmapRing() {
-  const heatmapRingGroup = _container.append('g')
-    .attr('class', 'heatmap-ring');
+function initHeatmapRing(): void {
 
-  heatmapRingGroup.selectAll('path')
-    .data(_data, d => d.id)
+  _heatmapRingGroup = _container.append('g').attr('class', 'heatmap-ring');
+
+  _heatmapRingGroup
+    .selectAll('path')
+    .data(_data, (d: Datapoint) => d.id)
     .enter()
     .append('path')
     .attr('class', d => `heatmap-ring-path ${d.code} ${d.indicator}`)
     .attr('fill', d => desaturate(getColor(d), 0.25))
     .attr('display', d => d.value === null ? 'none' : null)
     .attr('d', makeHeatmapPath)
-    .on('mouseup', (d) => {
-
-      if(_selectedCountryName !== d.country)  {
+    .on('mouseup', d => {
+      if (_selectedCountryName !== d.country) {
         _selectedCountryName = d.country;
         const countryCode = d.code;
         d3.select('.country-label.selected').classed('selected', false);
         d3.select(`.country-label.${countryCode}`).classed('selected', true);
         d3.selectAll(`.heatmap-ring-path.selected:not(.${_selectedIndicatorName})`).classed('selected', false);
         d3.selectAll(`.heatmap-ring-path.${countryCode}`).classed('selected', true);
-
         radialParent.updateOnCountryChange(_selectedCountryName);
       }
     })
-    .call(s => handleHoverEvents(s, _container));
+    .call(s => tooltipGen(s, _container));
 }
 
-function initCountryLabels() {
-
-  const countryLabelsGroup = d3.select('.heatmap-ring').append('g')
+function initCountryLabels(): void {
+  const countryLabelsGroup = _heatmapRingGroup.append('g')
     .attr('class', 'heatmap-ring-country-labels')
     .attr('transform', 'rotate(-0.15)');
 
-  countryLabelsGroup.selectAll('path')
+  _countryLabelPaths = countryLabelsGroup.selectAll('path')
     .data(_countryNames)
     .enter()
     .append('path')
     .attr('opacity', 0)
     .attr('class', 'country-label-path')
-    .attr('id', d => 'country-label-path-' + lookupCountryByCountryName(d).code)
+    .attr('id', d => `country-label-path-${lookupCountryByCountryName(d).code}`)
     .attr('d', makeCountryLabelPath);
 
-  countryLabelsGroup.selectAll('text')
-    .data(_countryNames, d => d)
+  _countryLabels = countryLabelsGroup.selectAll('text')
+    .data(_countryNames, (d: string) => d)
     .enter()
     .append('text')
-    .attr('class', d => `label country-label ${lookupCountryByCountryName(d).code}`)
+    .attr('class', (d: string) => `label country-label ${lookupCountryByCountryName(d).code}`)
     .attr('alignment-baseline', 'central')
     .style('text-anchor', setTextAnchor)
     .call(handleCountryLabelEvents)
     .append('textPath')
     .attr('class', 'country-label-textpath')
-    .attr('startOffset','50%')
-    .attr('xlink:href', d => '#country-label-path-' + lookupCountryByCountryName(d).code)
+    .attr('startOffset', '50%')
+    .attr('xlink:href', d => `#country-label-path-${lookupCountryByCountryName(d).code}`)
     .text(d => d);
 
-  function handleCountryLabelEvents(selection) {
+  function handleCountryLabelEvents(selection: CountryLabelTextSelection): void {
     selection
-      .on('mouseover', function() {
-        d3.select(this).classed('text-hover', true);
-
+      .on('mouseover', (d, i, n) => {
+        d3.select(n[i]).classed('text-hover', true);
       })
-      .on('mouseout', function() {
-        d3.select(this).classed('text-hover', false);
+      .on('mouseout', (d, i, n) => {
+        d3.select(n[i]).classed('text-hover', false);
       })
-      .on('mouseup', function(d) {
-
-        if(_selectedCountryName !== d)  {
+      .on('mouseup', (d, i, n) => {
+        if (_selectedCountryName !== d)  {
           _selectedCountryName = d;
           const countryCode = lookupCountryByCountryName(d).code;
 
-          d3.select('.country-label.selected').classed('selected', false);
-          d3.select(this).classed('selected', true);
-          d3.selectAll(`.heatmap-ring-path.selected:not(.${_selectedIndicatorName})`).classed('selected', false);
-          d3.selectAll(`.heatmap-ring-path.${countryCode}`).classed('selected', true);
+          d3.select('.country-label.selected')
+            .classed('selected', false);
+          d3.select(n[i])
+            .classed('selected', true);
+          d3.selectAll(`.heatmap-ring-path.selected:not(.${_selectedIndicatorName})`)
+            .classed('selected', false);
+          d3.selectAll(`.heatmap-ring-path.${countryCode}`)
+            .classed('selected', true);
 
           radialParent.updateOnCountryChange(_selectedCountryName);
         }
@@ -147,18 +161,18 @@ function initCountryLabels() {
   }
 }
 
-function setTextAnchor(d, i) {
+function setTextAnchor(d: string, i: number): string {
   return _hrAngleScale(i) >= Math.PI ? 'end' : 'start';
 }
 
-function initIndicatorLabels() {
+function initIndicatorLabels(): void {
 
-  const radialLabelsGroup = d3.select('.heatmap-ring').append('g')
+  const radialLabelsGroup = _heatmapRingGroup.append('g')
     .attr('class', 'heatmap-ring-indicator-labels')
     .attr('transform', `rotate(${radialLabelGroupRotation})`);
 
   radialLabelsGroup.selectAll('path')
-    .data(_indicatorNames.map(d => ({ name: d })), d => d.name)
+    .data(_indicatorNames, (d: string) => d)
     .enter()
     .append('path')
     .attr('fill', 'transparent')
@@ -167,7 +181,7 @@ function initIndicatorLabels() {
     .attr('d', makeIndicatorLabelPath);
 
   radialLabelsGroup.selectAll('text')
-    .data(_indicatorNames.map(d => ({ name: d })), d => d.name)
+    .data(_indicatorNames, (d: string) => d)
     .enter()
     .append('text')
     .attr('class', 'label label-radial')
@@ -176,44 +190,45 @@ function initIndicatorLabels() {
     .call(handleIndicatorLabelEvents)
     .append('textPath')
     .attr('xlink:href', (d, i) => '#radial-label-path-' + i)
-    .attr('startOffset','100%')
-    .text(d => categoryMap[d.name].label);
+    .attr('startOffset', '100%')
+    .text(d => categoryMap[d].label);
 
-  function handleIndicatorLabelEvents(selection) {
+  function handleIndicatorLabelEvents(
+    selection: d3.Selection<SVGTextElement, string, SVGGElement, any>
+  ): void {
+
     selection
-      .on('mouseover', function() {
-        d3.select(this).classed('text-hover', true);
+      .on('mouseover', (d, i, n) => {
+        d3.select(n[i]).classed('text-hover', true);
       })
-      .on('mouseout', function() {
-        d3.select(this).classed('text-hover', false);
+      .on('mouseout', (d, i, n) => {
+        d3.select(n[i]).classed('text-hover', false);
       })
-      .on('mouseup', function handleIndicatorLabelClick(d) {
+      .on('mouseup', (d, i, n) => {
 
-        if(_selectedIndicatorName === d.name) {
-
+        if (_selectedIndicatorName === d) {
           _sortDescending = !_sortDescending;
-
         } else {
-          _selectedIndicatorName = d.name;
+          _selectedIndicatorName = d;
           const countryCode = _selectedCountryName ? lookupCountryByCountryName(_selectedCountryName).code : '';
           d3.select('.label-radial.selected').classed('selected', false);
-          d3.select(this).classed('selected', true);
+          d3.select(n[i]).classed('selected', true);
 
           const excludeCountrySelectionPaths = countryCode ? `:not(.${countryCode})` : '';
           d3.selectAll(`.heatmap-ring-path.selected${excludeCountrySelectionPaths}`).classed('selected', false);
-          d3.selectAll(`.heatmap-ring-path.${d.name}`).classed('selected', true);
+          d3.selectAll(`.heatmap-ring-path.${d}`).classed('selected', true);
         }
-        sortByIndicator(d.name);
+        sortByIndicator(d);
       });
   }
 }
 
-function makeHeatmapPath(d) {
-  let indicatorIndex = _indicatorNames.indexOf(d.indicator);
+function makeHeatmapPath(d: Datapoint): string {
+  const indicatorIndex = _indicatorNames.indexOf(d.indicator);
   d.innerRadius = _hrRadiusScale(indicatorIndex);
   d.outerRadius = _hrRadiusScale(indicatorIndex + 1);
 
-  let countryIndex = lookupCountryIndex(d.country);
+  const countryIndex = lookupCountryIndex(d.country);
   d.startAngle = _hrAngleScale(countryIndex);
   d.endAngle = d.startAngle + _hrAngleScale.bandwidth();
   d.padAngle = 0.003;
@@ -227,22 +242,22 @@ function makeHeatmapPath(d) {
   });
 }
 
-function makeCountryLabelPath(d) {
-  let countryIndex = lookupCountryIndex(d);
+function makeCountryLabelPath(countryName: string): string {
+  const countryIndex = lookupCountryIndex(countryName);
+  const bandWidth = _hrAngleScale.bandwidth();
   let startAngle = _hrAngleScale(countryIndex);
-  let bandWidth = _hrAngleScale.bandwidth();
   startAngle = startAngle >= Math.PI ? startAngle + 0.01 : startAngle + bandWidth;
 
   return drawArc({
     innerRadius: _hrOuterRadius + hrLabelPadding,
     outerRadius: _hrOuterRadius + hrLabelLength,
     padRadius: hrInnerRadius,
-    startAngle: startAngle,
+    startAngle,
     endAngle: startAngle
-  });
+  } as any);
 }
 
-function makeIndicatorLabelPath(d, i) {
+function makeIndicatorLabelPath(d: any, i: number): string {
   const r = hrInnerRadius + 2 + i * hrCellHeight;
   const x = r * Math.sin(0.01);
   const y = r * Math.cos(0.025);
@@ -251,97 +266,83 @@ function makeIndicatorLabelPath(d, i) {
   return `m ${x} -${y} a ${r} ${r} 0 1 1 -1 0`;
 }
 
-function sortByIndicator(indicatorName) {
-  const values = [];
-  _empties = [];
+function sortByIndicator(indicatorName: string): void {
+  const values: Datapoint[] = [];
+  const empties: Datapoint[] = [];
 
-  d3.selectAll(`.${indicatorName}`).each(d => {
-    if(d.value) {
+  const separateEmpties = (d: Datapoint): void => {
+    if (d.value) {
       values.push(d);
     } else {
-      _empties.push(d);
-    }
-  });
-
-  const sortFn = (a, b) => {
-    const isDesc = a.desc;
-    if(_sortDescending) {
-      return isDesc ?  a.value - b.value : b.value - a.value;
-    } else {
-      return isDesc ?  b.value - a.value : a.value - b.value;
+      empties.push(d);
     }
   };
 
-  values.sort(sortFn).push(..._empties);
+  d3.selectAll(`.${indicatorName}`).each(separateEmpties);
+
+  values.sort(sortFn).push(...empties);
 
   const countryNames = values.map(d => d.country);
   _prevCountryNames = _countryNames;
   _countryNames = countryNames;
 
-  updateOnIndicatorSort();
+  updateOnIndicatorSort(empties.map((d: Datapoint) => d.code));
 
 }
 
-function updateOnIndicatorSort() {
+function updateOnIndicatorSort(emptyCodes: string[]): void {
   radialParent.updateOnIndicatorChange(_selectedIndicatorName);
-
-  updateHeatmapRingOnSort();
+  updateHeatmapRingOnSort(emptyCodes);
   updateCountryLabelsOnSort();
 }
 
-function updateHeatmapRingOnSort() {
+function updateHeatmapRingOnSort(emptyCodes: string[]): void {
 
-  const codes = _empties.map(d => d.code);
   const paths = d3.selectAll('.heatmap-ring-path');
+
   paths
     .transition()
     .delay(sortDuration)
-    .duration(d => timing.inOut - sortDuration(d))
+    .duration((d: Datapoint) => timing.inOut - sortDuration(d))
     .attr('opacity', 0.4)
     .transition()
     .ease(d3.easeExpInOut)
-    .delay(d => d.normalized * 100)
+    .delay((d: Datapoint) => d.normalized * 100)
     .duration(timing.dur)
     .attr('opacity', 0.4)
     .attrTween('d', tweenHeatmapPathAngles)
     .transition()
     .duration(sortDuration)
-    .attr('opacity', d => codes.includes(d.code) ? 0.4 : 1.0);
+    .attr('opacity', (d: Datapoint) => emptyCodes.includes(d.code) ? 0.4 : 1.0);
 
 }
 
-function sortDuration(d) {
-  return timing.in + timing.in * (_sortDescending ? 1 - d.normalized : d.normalized);
-}
+function updateCountryLabelsOnSort(): void {
 
-function updateCountryLabelsOnSort() {
-
-  const labels =  d3.select('.heatmap-ring-country-labels');
-
-  labels.selectAll('path')
+  _countryLabelPaths
     .transition()
     .duration(timing.dur)
-    .attrTween('d', d => tweenCountryLabelPaths(d, 10000));
+    .attrTween('d', (d: string) => tweenCountryLabelPaths(d, 10000));
 
-  labels.selectAll('text')
+  _countryLabels
     .transition().duration(timing.inOut)
     .attr('opacity', 0.0)
     .transition()
     .duration(timing.dur)
-    .style('text-anchor', (d, i) => (i = lookupCountryIndex(d), setTextAnchor(d, i)))
+    .style('text-anchor', (d: string, i: number) => (i = lookupCountryIndex(d), setTextAnchor(d, i)))
     .transition()
     .duration(timing.inOut)
     .attr('opacity', 1.0);
 }
 
-function tweenHeatmapPathAngles(d) {
+function tweenHeatmapPathAngles(d: Datapoint): (t: number) => string {
 
   const prevCountryIndex = _prevCountryNames.indexOf(d.country);
   const nextCountryIndex = _countryNames.indexOf(d.country);
   const interpolate = d3.interpolate(prevCountryIndex, nextCountryIndex);
   const bandwidth = _hrAngleScale.bandwidth();
 
-  return function(t) {
+  return function(t: number): string {
 
     d.startAngle = _hrLinearAngleScale(interpolate(t));
     d.endAngle = d.startAngle + bandwidth;
@@ -356,18 +357,18 @@ function tweenHeatmapPathAngles(d) {
   };
 }
 
-function tweenCountryLabelPaths(d, dist) {
+function tweenCountryLabelPaths(countryName: string, distance: number): (t: number) => string {
 
-  const prevCountryIndex = _prevCountryNames.indexOf(d);
-  const nextCountryIndex = _countryNames.indexOf(d);
+  const prevCountryIndex = _prevCountryNames.indexOf(countryName);
+  const nextCountryIndex = _countryNames.indexOf(countryName);
   const interpolate = d3.interpolate(prevCountryIndex, nextCountryIndex);
   const bandWidth = _hrAngleScale.bandwidth();
   const innerRadius = _hrOuterRadius + hrLabelPadding;
   const outerRadius = _hrOuterRadius + hrLabelLength;
 
-  return function(t) {
+  return function(t: number): string {
 
-    const T = slingshotT(t, 0.5, dist);
+    const T = slingshotT(t, 0.5, distance);
     let startAngle = _hrLinearAngleScale(interpolate(t));
     startAngle = startAngle >= Math.PI ? startAngle + 0.01 : startAngle + bandWidth;
 
@@ -377,33 +378,48 @@ function tweenCountryLabelPaths(d, dist) {
       padRadius: hrInnerRadius,
       startAngle,
       endAngle: startAngle
-    });
+    } as any);
   };
 }
 
-function slingshotT(t, treshold, r) {
-  if(t < treshold) return t * r;
-  else return (1 - t) * r;
+function slingshotT(t: number, treshold: number, r: number): number {
+  if (t < treshold) { return t * r; }
+  return (1 - t) * r;
 }
 
-function getColor(d) {
-
-  if(d.indicator === 'Total') {
+function getColor(d: Datapoint): string {
+  if (d.indicator === 'Total') {
     return colorize(d.indicator)(d.normalized);
   }
 
-  const stats = _indicatorStats[d.indicator].values.map(v => v.normalized).sort((a,b) => a - b);
+  const stats = _indicatorStats[d.indicator].values
+    .map((v: IndicatorValue) => v.normalized)
+    .sort((a: number, b: number) => a - b);
   const val = stats.indexOf(d.normalized) / stats.length;
   const color = colorize(d.indicator)(val);
+
   return color;
 }
 
-function lookupCountryIndex(countryName) {
+function lookupCountryIndex(countryName: string): number {
   return _countryNames.indexOf(countryName);
 }
 
-function lookupCountryByCountryName(countryName){
-  return _data.find(d => d.country === countryName);
+function lookupCountryByCountryName(countryName: string): Datapoint {
+  return _data.find((d: Datapoint) => d.country === countryName);
+}
+
+function sortFn(a: Datapoint, b: Datapoint): number {
+  const isDesc = a.desc;
+  if (_sortDescending) {
+    return isDesc ?  a.value - b.value : b.value - a.value;
+  } else {
+    return isDesc ?  b.value - a.value : a.value - b.value;
+  }
+}
+
+function sortDuration(d: Datapoint): number {
+  return timing.in + timing.in * (_sortDescending ? 1 - d.normalized : d.normalized);
 }
 
 export default {

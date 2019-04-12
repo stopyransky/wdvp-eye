@@ -6,7 +6,7 @@ import * as github from '../../assets/github.png';
 import { dataSource, modelData, makeData } from '../../data-helpers';
 import radialChart from '../d3/radial/radial';
 import Panel from '../panel/Panel';
-import { RadialProps, RadialSchema, RadialState } from '../../types';
+import { RadialProps, RadialData, RadialState } from '../../types';
 import { baseReducer } from '../../utils';
 import { categoryMap } from '../../metadata';
 
@@ -55,7 +55,7 @@ export default function RadialGraph() {
   function fetchData(): void {
     d3.dsv(';', dataSource, modelData)
       .then(makeData)
-      .then(({ dataItems, indicators, countries}: RadialSchema) => {
+      .then(({ dataItems, indicators, countries}: RadialData) => {
         setState('data', { dataItems, indicators, countries });
       });
     }
@@ -69,7 +69,7 @@ export default function RadialGraph() {
         setCurrentCountry: handleCountryUpdate,
         setCurrentIndicator: handleIndicatorUpdate
       };
-      radialChart._init(radialRef.current, radialProps);
+      radialChart.init(radialRef.current, radialProps);
     }
   }
 
