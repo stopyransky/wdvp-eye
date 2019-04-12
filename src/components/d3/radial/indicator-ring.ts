@@ -1,6 +1,9 @@
+
+// tslint:disable:variable-name
 import * as d3 from 'd3';
 import { categoryMap } from '../../../metadata';
 import { formatNumber } from '../../../data-helpers';
+import { RadialMainGroupSelection, RadialData, Indicators, Datapoint, IndicatorValue } from '../../../types';
 
 const irInnerRadius = 60;
 const irOuterRadius = 110;
@@ -9,20 +12,20 @@ const strongLabelRadius = irOuterRadius + 6;
 const ri = irInnerRadius - 10;
 const selectCountryHint = 'Select a country to view details here.';
 
-let _container = null;
-let _data = null;
-let _indicatorStats = null;
-let _selectedCountryName = null;
+let _container: RadialMainGroupSelection;
+let _data: Datapoint[];
+let _indicatorStats: any;
+let _selectedCountryName: string;
 let _indicatorRingGroup = null;
 let _irAngleScaleShift = null;
 let _radialLineGenerator = null;
 let _legendLabels = null;
 let _labels = null;
 
-function makeScale(stats) {
+function makeScale(stats: Indicators): (i: string) => d3.ScaleQuantile<number> {
 
-  return function quantileScaleOf(indicatorName) {
-    const quantileCount = 100;
+  return function quantileScaleOf(indicatorName: string): d3.ScaleQuantile<number> {
+    const quantileCount = 50;
     const step = (irOuterRadius - irInnerRadius) / quantileCount;
     const range = d3.range(quantileCount).map((d, i) => irInnerRadius + i * step);
     const domain = stats[indicatorName].values.map(v => v.normalized);
@@ -31,7 +34,7 @@ function makeScale(stats) {
   };
 }
 
-function init(container, data, indicatorStats) {
+function init(container: RadialMainGroupSelection, data: Datapoint[], indicatorStats: Indicators) {
 
   _container = container;
   _data = data;
@@ -64,19 +67,24 @@ function init(container, data, indicatorStats) {
 
   const averageData = getDataForRadialLine(_indicatorStats, 'normAverage');
 
-  const angleScaleDomain = d3.range(19).map((d,i) => i);
+  const angleScaleDomain = d3.range(19).map((d, i) => i);
 
-  const irAngleScale = d3.scaleBand().domain(angleScaleDomain).range([ 0, 2 * Math.PI ]);
-  _irAngleScaleShift = d3.scaleBand().domain(angleScaleDomain).range([ -Math.PI/2, 2 * Math.PI - Math.PI/2 ]);
+  const irAngleScale = d3.scaleBand()
+    .domain(angleScaleDomain as any)
+    .range([ 0, 2 * Math.PI ]);
+
+  _irAngleScaleShift = d3.scaleBand()
+    .domain(angleScaleDomain as any)
+    .range([ -Math.PI / 2, 2 * Math.PI - Math.PI / 2 ]);
 
   _radialLineGenerator = d3.radialLine()
     .curve(d3.curveCatmullRomClosed)
-    .angle((d, i) => irAngleScale(i))
-    .radius(d => d[0] && scale(d[0])(d[1]));
+    .angle((d: any, i: any) => irAngleScale(i))
+    .radius((d: any) => d[0] && scale(d[0])(d[1]));
 
   _indicatorRingGroup.append('path')
     .attr('class', 'ir-indicator-radial')
-    .attr('d', _selectedCountryName ? _radialLineGenerator(averageData): 'M0,0')
+    .attr('d', _selectedCountryName ? _radialLineGenerator(averageData) : 'M0,0')
     .attr('opacity', '0')
     .attr('fill', 'transparent');
 
@@ -86,9 +94,9 @@ function init(container, data, indicatorStats) {
     .enter()
     .append('circle')
     .attr('class', 'ir-marker')
-    .attr('cx', (d,i) => d[0] && scale(d[0])(d[1]) * Math.cos(_irAngleScaleShift(i)))
-    .attr('cy', (d,i) => d[0] && scale(d[0])(d[1]) * Math.sin(_irAngleScaleShift(i)))
-    .attr('fill', d => d[1] === null ? 'transparent': 'white' )
+    .attr('cx', (d, i) => d[0] && scale(d[0])(d[1]) * Math.cos(_irAngleScaleShift(i)))
+    .attr('cy', (d, i) => d[0] && scale(d[0])(d[1]) * Math.sin(_irAngleScaleShift(i)))
+    .attr('fill', d => d[1] === null ? 'transparent' : 'white' )
     .attr('stroke', 'white')
     .call(handleEvents);
 
@@ -124,7 +132,7 @@ function init(container, data, indicatorStats) {
     .attr('opacity', 0)
     .append('textPath')
     .attr('xlink:href', '#segment-label-path-' + 1)
-    .style('font-size','8px')
+    .style('font-size', '8px')
     .style('fill', 'white')
     .attr('startOffset', function(d, i) {
       return i * 100 / 4 + '%';
@@ -157,7 +165,7 @@ function init(container, data, indicatorStats) {
     .attr('transform', 'rotate(-8)')
     .append('textPath')
     .attr('xlink:href', '#legend-label-path-1')
-    .style('font-size','10px')
+    .style('font-size', '10px')
     .attr('startOffset', '0')
     .text('strong');
 
@@ -167,17 +175,17 @@ function init(container, data, indicatorStats) {
     .attr('transform', 'rotate(-11)')
     .append('textPath')
     .attr('xlink:href', '#legend-label-path-2')
-    .style('font-size','10px')
+    .style('font-size', '10px')
     .attr('startOffset', '0')
     .text('weak');
 }
 
-function getIndicatorValue(countryName, indicator) {
+function getIndicatorValue(countryName: string, indicator: string): number {
   return _indicatorStats[indicator].values.find(v => v.country === countryName).value;
 }
 
 function handleEvents(selection) {
-  selection.on('mouseover',function(d) {
+  selection.on('mouseover', function(d) {
     d3.select(this).classed('hover', true);
     const averageData = _indicatorStats[d[0]].average;
     const value = getIndicatorValue(_selectedCountryName, d[0]);
@@ -187,7 +195,7 @@ function handleEvents(selection) {
     const y = d3.mouse(this)[1];
 
     const tooltip = _container.append('g')
-      .attr('id','radial-tooltip')
+      .attr('id', 'radial-tooltip')
       .attr('class', 'tooltip')
       .attr('transform', `translate(${x}, ${y})`);
 
@@ -253,17 +261,17 @@ function updateOnCountryChange(data, selectedCountryName) {
   const quantileScale = makeScale(_indicatorStats);
   _indicatorRingGroup.selectAll('.ir-marker').data(radialData)
     .transition()
-    .attr('cx', (d,i) => d[0] && quantileScale(d[0])(d[1]) * Math.cos(_irAngleScaleShift(i)))
-    .attr('cy', (d,i) => d[0] && quantileScale(d[0])(d[1]) * Math.sin(_irAngleScaleShift(i)))
+    .attr('cx', (d, i) => d[0] && quantileScale(d[0])(d[1]) * Math.cos(_irAngleScaleShift(i)))
+    .attr('cy', (d, i) => d[0] && quantileScale(d[0])(d[1]) * Math.sin(_irAngleScaleShift(i)))
     .attr('r', 3)
-    .attr('fill', d => d[1] === null ? 'black': 'white' )
+    .attr('fill', d => d[1] === null ? 'black' : 'white' )
     .attr('stroke', 'white');
 
   _labels.selectAll('text').transition().attr('opacity', 1);
   _legendLabels.selectAll('text').transition().attr('opacity', 1);
 }
 
-function getDataForRadialLine(data, accessor) {
+function getDataForRadialLine(data: Datapoint[], accessor: string) {
 
   const points = [];
   const keys = Object.keys(data);
