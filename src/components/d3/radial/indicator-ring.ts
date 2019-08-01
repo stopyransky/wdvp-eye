@@ -134,12 +134,8 @@ function init(container: RadialMainGroupSelection, data: Datapoint[], indicatorS
     .attr('xlink:href', '#segment-label-path-' + 1)
     .style('font-size', '8px')
     .style('fill', 'white')
-    .attr('startOffset', function(d, i) {
-      return i * 100 / 4 + '%';
-    })
-    .text(function(d) {
-      return d.label;
-    });
+    .attr('startOffset', (d, i) => i * 100 / 4 + '%')
+    .text(d => d.label);
 
   _legendLabels = _indicatorRingGroup
     .append('g')
