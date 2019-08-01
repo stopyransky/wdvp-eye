@@ -79,12 +79,10 @@ function renderLegendRow(legend) {
       .attr('font-size', '0.875rem')
       .attr('fill', 'white')
       .attr('alignment-baseline', 'middle')
-      // .attr('text-offset', 'end')
       .text(c.name);
   };
 
 }
-
 
 export default {
   render
